@@ -1,0 +1,35 @@
+version: '3.7'
+services:
+  rabbitmq:
+    image: rabbitmq:3.7-alpine
+  gateway:
+    build:
+      context: .
+    image: service-gateway
+    env_file: .env
+    environment:
+      NODEID: "node-gateway"
+      SERVICES: gateway
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - rabbitmq
+  email:
+    build:
+      context: .
+    env_file: .env
+    environment:
+      NODEID: "node-email"
+      SERVICES: email
+    depends_on:
+      - rabbitmq
+  member:
+    build:
+      context: .
+    env_file: .env
+    environment:
+      NODEID: "node-member"
+      SERVICES: member
+    depends_on:
+      - rabbitmq
