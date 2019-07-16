@@ -12,8 +12,8 @@ module.exports = {
             app.get("/overallResult", this.getOverallResult);
             app.get("/member/list", this.getMemberList);
             app.get("/member/:id", this.getMember);
+            app.put("/member/:id", this.updateMember);
             app.post("/member", this.createMember);
-            app.put("/member/:id/result", this.updateMemberResult);
         },
         getOverallResult(req, res) {
             return Promise.resolve()
@@ -53,12 +53,13 @@ module.exports = {
                 })
                 .catch(this.handleErr(res));
         },
-        updateMemberResult(req, res) {
+
+        updateMember(req, res) {
             const id = req.params.id;
             const payload = req.body;
             return Promise.resolve()
                 .then(() => {
-                    return this.broker.call("member.updateResult", { id, payload }).then(member =>
+                    return this.broker.call("member.update", { id, payload }).then(member =>
                         res.send(member)
                     );
                 })
@@ -75,5 +76,24 @@ module.exports = {
         app.use(bodyParser());
         this.initRoutes(app);
         this.app = app;
-    }
+    },
+    started() {
+        this.app.listen(Number(this.settings.port), err => {
+            if (err)
+                return this.broker.fatal(err);
+
+            this.logger.info(`server started on port ${this.settings.port}`);
+        });
+
+    },
+    stopped() {
+        if (this.app.listening) {
+            this.app.close(err => {
+                if (err)
+                    return this.logger.error("server close error!", err);
+
+                this.logger.info("server stopped!");
+            });
+        }
+    },
 };

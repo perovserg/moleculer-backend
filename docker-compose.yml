@@ -2,6 +2,12 @@ version: '3.7'
 services:
   rabbitmq:
     image: rabbitmq:3.7-alpine
+  redis:
+    image: redis:alpine
+  mongo:
+    image: mongo
+    volumes:
+      - ./db:/data/db
   gateway:
     build:
       context: .
@@ -15,6 +21,7 @@ services:
       - "3000:3000"
     depends_on:
       - rabbitmq
+      - redis
   email:
     build:
       context: .
@@ -33,3 +40,5 @@ services:
       SERVICES: member
     depends_on:
       - rabbitmq
+      - redis
+      - mongo

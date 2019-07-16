@@ -1,3 +1,5 @@
 LOGLEVEL=info
 TRANSPORTER=amqp://rabbitmq:5672
+CACHER=redis://redis
+MONGO_URI=mongodb://mongo/moleculer-backend
 SERVICEDIR=services

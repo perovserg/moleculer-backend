@@ -2,3 +2,4 @@ docker
 Dockerfile
 node_modules
 .idea
+db
