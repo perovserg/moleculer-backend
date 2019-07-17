@@ -8,7 +8,7 @@ const noAvatar = 'https://png.pngtree.com/svg/20161027/631929649c.svg';
 module.exports = {
     name: "gateway",
     settings: {
-        port: process.env.PORT || 3000,
+        port: process.env.PORT || 3001,
     },
     methods: {
         initRoutes(app) {
@@ -70,6 +70,11 @@ module.exports = {
         // noinspection JSValidateTypes
         app.server = require('http').Server(app);
         app.use(bodyParser());
+        app.all('*', function(req, res, next) {
+            res.header("Access-Control-Allow-Origin", "*");
+            res.header("Access-Control-Allow-Headers", "X-Requested-With");
+            next();
+        });
         this.initRoutes(app);
         this.app = app;
     },

@@ -16,9 +16,9 @@ services:
     environment:
       NODEID: "node-gateway"
       SERVICES: gateway
-      PORT: 3000
+      PORT: 3001
     ports:
-      - "3000:3000"
+      - "3001:3001"
     depends_on:
       - rabbitmq
       - redis
