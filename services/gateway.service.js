@@ -1,6 +1,7 @@
 "use strict";
 const express = require("express");
 const bodyParser = require('body-parser');
+const io = require('socket.io');
 
 const noAvatar = 'https://png.pngtree.com/svg/20161027/631929649c.svg';
 
@@ -66,24 +67,28 @@ module.exports = {
     },
     created() {
         const app = express();
+        // noinspection JSValidateTypes
+        app.server = require('http').Server(app);
         app.use(bodyParser());
         this.initRoutes(app);
         this.app = app;
     },
     started() {
-        this.app.listen(Number(this.settings.port), err => {
-            if (err)
-                return this.broker.fatal(err);
+        this.app.server.listen(Number(this.settings.port), err => {
+            if (err) return this.broker.fatal(err);
 
             this.logger.info(`server started on port ${this.settings.port}`);
+
+            this.app.io = io(this.app.server).on('connection', () => {
+                this.logger.info('new client connected by socket.io');
+            });
         });
 
     },
     stopped() {
         if (this.app.listening) {
             this.app.close(err => {
-                if (err)
-                    return this.logger.error("server close error!", err);
+                if (err) return this.logger.error("server close error!", err);
 
                 this.logger.info("server stopped!");
             });

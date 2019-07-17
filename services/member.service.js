@@ -59,8 +59,8 @@ module.exports = {
 
                         return this.adapter.insert({...member})
                             .then(json => {
-                                console.log('emit frontend event "New Member"...');
-                                return this.entityChanged("created", json, ctx).then(() => json);
+                                this.app.io.emit('UPDATE_MEMBER_LIST');
+                                return json;
                             });
                     });
             }
@@ -78,8 +78,8 @@ module.exports = {
                             return this.adapter.updateById(id, {"$inc":{distance: distance}})
                                 .then( json => {
                                     this.checkLeaderChange(leaders, json);
-                                    console.log('emit frontend event "totalDistance has changed"...');
-                                    return this.entityChanged("updated", json, ctx).then(() => json);
+                                    this.app.io.emit('UPDATE_TOTAL_DISTANCE');
+                                    return json;
                                 });
                         });
                     });
