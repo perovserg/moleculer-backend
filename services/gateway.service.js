@@ -2,6 +2,8 @@
 const express = require("express");
 const bodyParser = require('body-parser');
 
+const noAvatar = 'https://png.pngtree.com/svg/20161027/631929649c.svg';
+
 module.exports = {
     name: "gateway",
     settings: {
@@ -9,17 +11,16 @@ module.exports = {
     },
     methods: {
         initRoutes(app) {
-            app.get("/overallResult", this.getOverallResult);
+            app.get("/totalDistance", this.getTotalDistance);
             app.get("/member/list", this.getMemberList);
-            app.get("/member/:id", this.getMember);
-            app.put("/member/:id", this.updateMember);
+            app.put("/member/:id/incrementDistance", this.incrementMemberDistance);
             app.post("/member", this.createMember);
         },
-        getOverallResult(req, res) {
+        getTotalDistance(req, res) {
             return Promise.resolve()
                 .then(() => {
-                    return this.broker.call("member.overallResult").then(result => {
-                        res.send(result);
+                    return this.broker.call("member.totalDistance").then(distance => {
+                        res.send(distance.shift());
                     });
                 })
                 .catch(this.handleErr(res));
@@ -33,35 +34,27 @@ module.exports = {
                 })
                 .catch(this.handleErr(res));
         },
-        getMember(req, res) {
-            const id = req.params.id;
-            return Promise.resolve()
-                .then(() => {
-                    return this.broker.call("member.getById", { id }).then(member => {
-                        res.send(member);
-                    });
-                })
-                .catch(this.handleErr(res));
-        },
         createMember(req, res) {
-            const payload = req.body;
+            const { name, email, distance = 0, avatar = noAvatar} = req.body;
+            const member = { name, email, distance: parseInt(distance), avatar};
             return Promise.resolve()
                 .then(() => {
-                    return this.broker.call("member.create", { payload }).then(member =>
+                    return this.broker.call("member.create", { member }).then(member =>
                         res.send(member)
                     );
                 })
                 .catch(this.handleErr(res));
         },
 
-        updateMember(req, res) {
-            const id = req.params.id;
-            const payload = req.body;
+        incrementMemberDistance(req, res) {
+            const {id} = req.params;
+            const {distance} = req.body;
             return Promise.resolve()
                 .then(() => {
-                    return this.broker.call("member.update", { id, payload }).then(member =>
-                        res.send(member)
-                    );
+                    return this.broker.call("member.incrementDistance", { id, distance: parseInt(distance) })
+                        .then(member =>
+                            res.send(member)
+                        );
                 })
                 .catch(this.handleErr(res));
         },

@@ -1,5 +1,6 @@
 "use strict";
 
+const { MoleculerClientError } = require("moleculer").Errors;
 const DbService = require("moleculer-db");
 const MongooseAdapter = require("moleculer-db-adapter-mongoose");
 const Member = require("../models/member.model");
@@ -8,26 +9,80 @@ const Fakerator = require("fakerator");
 const fake = new Fakerator();
 
 const fakeMembers = [
-    {name: 'John Doe', email: 'john.doe@somemail.ru', result: 300, avatar: fake.internet.avatar()},
-    {name: 'Jane Doe', email: 'jane.doe@somemail.ru', result: 400, avatar: fake.internet.avatar()},
-    {name: 'Luke Skywalker', email: 'luke.skywalker@somemail.ru', result: 500, avatar: fake.internet.avatar()},
+    {name: 'John Doe', email: 'john.doe@somemail.ru', distance: 300, avatar: fake.internet.avatar()},
+    {name: 'Jane Doe', email: 'jane.doe@somemail.ru', distance: 400, avatar: fake.internet.avatar()},
+    {name: 'Luke Skywalker', email: 'luke.skywalker@somemail.ru', distance: 500, avatar: fake.internet.avatar()},
 ];
 
 module.exports = {
-    name: "members",
-    mixins: [DbService, CacheCleaner(["members"])],
+    name: "member",
+    mixins: [DbService, CacheCleaner(["member"])],
     adapter: new MongooseAdapter(process.env.MONGO_URI || "mongodb://localhost/moleculer-backend"),
     model: Member,
 
     settings: {
-        fields: ["_id", "name", "email", "result", "avatar"]
+        fields: ["_id", "name", "email", "distance", "avatar"]
     },
 
     actions: {
-        authors: {
+        totalDistance: {
             cache: true,
             handler(ctx) {
-                return this.adapter.find({ query: { author: true }});
+                return Member.aggregate([
+                    { $group: { _id: null, totalDistance: { $sum: '$distance' }}},
+                    { $project: { _id: 0, totalDistance: 1 }}
+                ]);
+            }
+        },
+        listAll: {
+            cache: true,
+            handler(ctx) {
+                return this.adapter.find({});
+            }
+        },
+        create: {
+            params:
+                {
+                    member: { type: "object", props: {
+                            name: {type: "string"},
+                            email: {type: "email"},
+                            distance: {type: "number"},
+                            avatar: {type: "string", optional: true}
+                        }}
+                },
+            handler(ctx) {
+                const { member } = ctx.params;
+                return this.adapter.findOne({ email: member.email })
+                    .then(found => {
+                        if (found)
+                            return this.Promise.reject(new MoleculerClientError(`Member (with email: ${member.email}) has already exist!`));
+
+                        return this.adapter.insert({...member})
+                            .then(json => {
+                                console.log('emit frontend event "New Member"...');
+                                return this.entityChanged("created", json, ctx).then(() => json);
+                            });
+                    });
+            }
+        },
+        incrementDistance: {
+            params: {id: {type: 'string'}, distance: {type: "number"}},
+            handler(ctx) {
+                const { id, distance } = ctx.params;
+                return this.adapter.findById(id)
+                    .then(member => {
+                        if (!member)
+                            return this.Promise.reject(new MoleculerClientError(`Member (with id: ${id}) doesn't found!`));
+
+                        this.getLeaders().then(leaders => {
+                            return this.adapter.updateById(id, {"$inc":{distance: distance}})
+                                .then( json => {
+                                    this.checkLeaderChange(leaders, json);
+                                    console.log('emit frontend event "totalDistance has changed"...');
+                                    return this.entityChanged("updated", json, ctx).then(() => json);
+                                });
+                        });
+                    });
             }
         }
     },
@@ -42,6 +97,25 @@ module.exports = {
                     this.logger.info(`Generated ${members.length} members!`);
                     this.clearCache();
                 });
+        },
+        getLeaders() {
+            return Promise.resolve()
+                .then(() => Member.aggregate([
+                        { $group: { _id: null, maxDistance: { $max: '$distance' }}},
+                        { $project: { _id: 0, maxDistance: 1 }}
+                        ])
+                )
+                .then( agg => {
+                    const {maxDistance} = agg.shift();
+                    return Member.find({ distance: maxDistance })
+                })
+        },
+        checkLeaderChange(leaders, member) {
+            leaders.forEach(leader => {
+                if (leader._id !== member._id && leader.distance < member.distance) {
+                    this.broker.emit('member.leaderHasChanged', { prevLeader: leader, newLeader: member });
+                }
+            });
         }
     },
 
@@ -56,34 +130,3 @@ module.exports = {
     }
 
 };
-
-
-
-// const movies = [
-//     {id: 1, title: 'Sharknado'},
-//     {id: 2, title: 'Roma'},
-// ];
-//
-// module.exports = {
-//     name: "movies",
-//
-//     actions: {
-//         listAll(ctx) {
-//             return Promise.resolve({ movies: movies });
-//         },
-//         getById(ctx) {
-//             const id = Number(ctx.params.id);
-//             return Promise.resolve(movies.find(movie => movie.id === id ));
-//         },
-//         create(ctx) {
-//             const lastId = Math.max(...movies.map(movie => movie.id));
-//             const movie = {
-//                 id: lastId + 1,
-//                 ...ctx.params.payload,
-//             };
-//             movies.push(movie);
-//             this.broker.emit("movie.created", movie);
-//             return Promise.resolve(movie);
-//         }
-//     },
-// };

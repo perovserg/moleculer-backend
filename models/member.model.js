@@ -16,7 +16,7 @@ const MemberSchema = new mongoose.Schema({
 		lowercase: true,
 		required: "Please fill in an email"
 	},
-	result: {
+	distance: {
 		type: Number
 	},
 	avatar: {
