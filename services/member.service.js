@@ -113,7 +113,7 @@ module.exports = {
         checkLeaderChange(leaders, member) {
             leaders.forEach(leader => {
                 if (leader._id !== member._id && leader.distance < member.distance) {
-                    this.broker.emit('member.leaderHasChanged', { prevLeader: leader, newLeader: member });
+                    this.broker.emit('member.leaderChanged', { prevLeader: leader, newLeader: member });
                 }
             });
         }
