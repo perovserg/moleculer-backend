@@ -109,8 +109,10 @@ module.exports = {
 
             this.logger.info(`server started on port ${this.settings.port}`);
 
-            socketIO = io(this.app.server).on('connection', () => {
-                this.logger.info('new client connected by socket.io');
+            socketIO = io(this.app.server);
+            socketIO.on('connection', socket => {
+                this.logger.info('New client connected by socket.io');
+                socket.on("disconnect", () => this.logger.info("Client disconnected"));
             });
         });
 

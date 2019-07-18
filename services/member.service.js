@@ -26,6 +26,7 @@ module.exports = {
 
     actions: {
         totalDistance: {
+            cache: false,
             handler(ctx) {
                 return Member.aggregate([
                     { $group: { _id: null, totalDistance: { $sum: '$distance' }}},
@@ -34,6 +35,7 @@ module.exports = {
             }
         },
         listAll: {
+            cache: false,
             handler(ctx) {
                 return this.adapter.find({sort: ["-distance"]});
             }
