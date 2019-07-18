@@ -79,6 +79,7 @@ module.exports = {
                                 .then( json => {
                                     this.checkLeaderChange(leaders, json);
                                     this.broker.emit('socket-io.updateTotalDistance');
+                                    this.broker.emit('socket-io.updateMemberList');
                                     return json;
                                 });
                         });
