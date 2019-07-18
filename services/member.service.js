@@ -16,7 +16,7 @@ const fakeMembers = [
 
 module.exports = {
     name: "member",
-    mixins: [DbService, CacheCleaner(["member"])],
+    mixins: [DbService, CacheCleaner(["cache.clean.member"])],
     adapter: new MongooseAdapter(process.env.MONGO_URI || "mongodb://localhost/moleculer-backend"),
     model: Member,
 
@@ -26,7 +26,6 @@ module.exports = {
 
     actions: {
         totalDistance: {
-            cache: true,
             handler(ctx) {
                 return Member.aggregate([
                     { $group: { _id: null, totalDistance: { $sum: '$distance' }}},
@@ -35,9 +34,8 @@ module.exports = {
             }
         },
         listAll: {
-            cache: true,
             handler(ctx) {
-                return this.adapter.find({});
+                return this.adapter.find({sort: ["-distance"]});
             }
         },
         create: {
@@ -52,14 +50,14 @@ module.exports = {
                 },
             handler(ctx) {
                 const { member } = ctx.params;
-                return this.adapter.findOne({ email: member.email })
+                return this.adapter.findOne({ email: { $eq: member.email } })
                     .then(found => {
                         if (found)
                             return this.Promise.reject(new MoleculerClientError(`Member (with email: ${member.email}) has already exist!`));
 
                         return this.adapter.insert({...member})
                             .then(json => {
-                                this.app.io.emit('UPDATE_MEMBER_LIST');
+                                this.broker.emit('socket-io.updateMemberList');
                                 return json;
                             });
                     });
@@ -78,7 +76,7 @@ module.exports = {
                             return this.adapter.updateById(id, {"$inc":{distance: distance}})
                                 .then( json => {
                                     this.checkLeaderChange(leaders, json);
-                                    this.app.io.emit('UPDATE_TOTAL_DISTANCE');
+                                    this.broker.emit('socket-io.updateTotalDistance');
                                     return json;
                                 });
                         });

@@ -5,6 +5,8 @@ const io = require('socket.io');
 
 const noAvatar = 'https://png.pngtree.com/svg/20161027/631929649c.svg';
 
+let socketIO;
+
 module.exports = {
     name: "gateway",
     settings: {
@@ -20,8 +22,8 @@ module.exports = {
         getTotalDistance(req, res) {
             return Promise.resolve()
                 .then(() => {
-                    return this.broker.call("member.totalDistance").then(distance => {
-                        res.send(distance.shift());
+                    return this.broker.call("member.totalDistance").then(result => {
+                        res.send(result.shift());
                     });
                 })
                 .catch(this.handleErr(res));
@@ -36,7 +38,9 @@ module.exports = {
                 .catch(this.handleErr(res));
         },
         createMember(req, res) {
-            const { name, email, distance = 0, avatar = noAvatar} = req.body;
+            let { name, email, distance, avatar} = req.body;
+            if(!distance) distance = 0;
+            if(!avatar) avatar = noAvatar;
             const member = { name, email, distance: parseInt(distance), avatar};
             return Promise.resolve()
                 .then(() => {
@@ -61,20 +65,41 @@ module.exports = {
         },
         handleErr(res) {
             return err => {
+                this.logger.error("Request error!", err);
                 res.status(err.code || 500).send(err.message);
             };
         }
+    },
+    events: {
+        "socket-io.updateMemberList": {
+            group: "other",
+            handler() {
+                socketIO.emit('UPDATE_MEMBER_LIST');
+            }
+        },
+        "socket-io.updateTotalDistance": {
+            group: "other",
+            handler() {
+                socketIO.emit('UPDATE_TOTAL_DISTANCE');
+            }
+        },
     },
     created() {
         const app = express();
         // noinspection JSValidateTypes
         app.server = require('http').Server(app);
-        app.use(bodyParser());
         app.all('*', function(req, res, next) {
             res.header("Access-Control-Allow-Origin", "*");
-            res.header("Access-Control-Allow-Headers", "X-Requested-With");
+            res.header("Access-Control-Allow-Credentials", "true");
+            res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
+            res.header("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
             next();
         });
+        app.use(bodyParser.urlencoded({extended: true}));
+        app.use(bodyParser.json());
+        app.use(bodyParser.text());
+        app.use(bodyParser.raw({limit: '2048kb'}));
+
         this.initRoutes(app);
         this.app = app;
     },
@@ -84,7 +109,7 @@ module.exports = {
 
             this.logger.info(`server started on port ${this.settings.port}`);
 
-            this.app.io = io(this.app.server).on('connection', () => {
+            socketIO = io(this.app.server).on('connection', () => {
                 this.logger.info('new client connected by socket.io');
             });
         });
